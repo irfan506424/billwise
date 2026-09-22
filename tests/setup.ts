@@ -10,10 +10,11 @@ const dbUrl = `file:${dbPath}`;
 process.env.DATABASE_URL = dbUrl;
 process.env.AUTH_SECRET = process.env.AUTH_SECRET || "test-secret";
 
-// Wipe + apply migrations to the test DB.
+// Wipe + sync the schema to the test DB. Tests don't need migration history,
+// so `db push` is simpler and less failure-prone than `migrate deploy`.
 rmSync(dbPath, { force: true });
 rmSync(`${dbPath}-journal`, { force: true });
-execSync("npx prisma migrate deploy", {
+execSync("npx prisma db push --skip-generate", {
   stdio: "ignore",
   env: { ...process.env, DATABASE_URL: dbUrl },
 });
