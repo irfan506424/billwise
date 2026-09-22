@@ -19,6 +19,7 @@ model User {
   labels          Label[]
   rules           Rule[]
   recommendations Recommendation[]
+  plaidItems      PlaidItem[]
 
   @@map("users")
 }
@@ -61,7 +62,7 @@ model Transaction {
   currency    String   @default("USD")
   type        String   @default("expense") // expense | income
   date        DateTime
-  source      String   @default("manual") // manual | ocr | csv | email
+  source      String   @default("manual") // manual | ocr | csv | email | plaid
   rawText     String?
   lineItems   String?
   tax         Decimal?
@@ -69,11 +70,16 @@ model Transaction {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // external sync dedupe (e.g. Plaid transaction id)
+  externalSource String?
+  externalId     String?
+
   categoryId  Int?
   category    Category? @relation(fields: [categoryId], references: [id])
   labels      Label[]
   flags       Flag[]
 
+  @@unique([userId, externalSource, externalId])
   @@index([userId, date])
   @@index([userId, categoryId])
   @@map("transactions")
@@ -128,4 +134,20 @@ model Recommendation {
 
   @@index([userId])
   @@map("recommendations")
+}
+
+model PlaidItem {
+  id             Int      @id @default(autoincrement())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId         String   @unique
+  accessToken    String   // AES-256-GCM encrypted at rest
+  institutionId  String?
+  institutionName String?
+  cursor         String?  // sync pagination cursor
+  lastSyncedAt   DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@map("plaid_items")
 }
