@@ -32,6 +32,7 @@ model User {
   rules           Rule[]
   recommendations Recommendation[]
   plaidItems      PlaidItem[]
+  stripeAccounts  StripeAccount[]
 
   @@map("users")
 }
@@ -162,4 +163,18 @@ model PlaidItem {
 
   @@index([userId])
   @@map("plaid_items")
+}
+
+model StripeAccount {
+  id             Int      @id @default(autoincrement())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId       String   @unique
+  accessToken     String   // AES-256-GCM encrypted at rest (refreshable)
+  scope            String   @default("read_only")
+  lastSyncedAt     DateTime?
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
+  @@map("stripe_accounts")
 }

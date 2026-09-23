@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncAllUsers, plaidAvailable } from "@/lib/plaid";
+import { syncAllUsersStripe, stripeAvailable } from "@/lib/stripe";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -14,15 +15,26 @@ function authorized(request: NextRequest): boolean {
 
 export async function POST(request: NextRequest) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!plaidAvailable()) return NextResponse.json({ ok: true, skipped: "plaid not configured" });
 
-  const { users, results } = await syncAllUsers();
-  const totals = results.reduce(
-    (acc, r) => ({ added: acc.added + r.added, modified: acc.modified + r.modified, removed: acc.removed + r.removed }),
-    { added: 0, modified: 0, removed: 0 },
-  );
-  logger.info({ event: "plaid.cron.done", users, ...totals });
-  return NextResponse.json({ users, ...totals });
+  const summary: Record<string, unknown> = {};
+
+  if (plaidAvailable()) {
+    const { users, results } = await syncAllUsers();
+    summary.plaid = {
+      users,
+      added: results.reduce((a, r) => a + r.added, 0),
+      modified: results.reduce((a, r) => a + r.modified, 0),
+      removed: results.reduce((a, r) => a + r.removed, 0),
+    };
+  }
+
+  if (stripeAvailable()) {
+    const { users: sUsers, added } = await syncAllUsersStripe();
+    summary.stripe = { users: sUsers, added };
+  }
+
+  logger.info({ event: "cron.done", ...summary });
+  return NextResponse.json(summary);
 }
 
 // Vercel Cron sends GET as well in some configs.

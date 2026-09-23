@@ -12,6 +12,13 @@ type PlaidItem = {
   createdAt: string;
 };
 
+type StripeItem = {
+  id: number;
+  accountId: string;
+  lastSyncedAt: string | null;
+  createdAt: string;
+};
+
 declare global {
   interface Window {
     Plaid?: {
@@ -30,6 +37,7 @@ const PLAID_SCRIPT = "https://cdn.plaid.com/link/v2/stable/link.js";
 export default function AccountsPage() {
   const router = useRouter();
   const [items, setItems] = useState<PlaidItem[]>([]);
+  const [stripeItems, setStripeItems] = useState<StripeItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [scriptReady, setScriptReady] = useState(false);
@@ -59,8 +67,18 @@ export default function AccountsPage() {
     const res = await fetch("/api/plaid/items");
     if (res.ok) setItems(await res.json());
   }
+  async function loadStripeItems() {
+    const res = await fetch("/api/stripe/items");
+    if (res.ok) setStripeItems(await res.json());
+  }
   useEffect(() => {
     loadItems();
+    loadStripeItems();
+    // Surface Stripe OAuth callback result passed back via ?connected= / ?error=
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("connected") === "stripe") setMsg({ ok: true, text: "Stripe connected. Payments syncing as income." });
+    const err = sp.get("error");
+    if (err) setMsg({ ok: false, text: err });
   }, []);
 
   async function connect() {
@@ -147,6 +165,50 @@ export default function AccountsPage() {
     }
   }
 
+  async function connectStripe() {
+    setBusy(true);
+    setMsg(null);
+    const res = await fetch("/api/stripe/link-token", { method: "POST" });
+    const j = await res.json();
+    setBusy(false);
+    if (!res.ok) {
+      setMsg({ ok: false, text: j.error ?? "Could not start Stripe Connect" });
+      return;
+    }
+    // Redirect the browser to Stripe's OAuth authorize URL.
+    window.location.href = j.url;
+  }
+
+  async function stripeSyncNow() {
+    setBusy(true);
+    setMsg(null);
+    const res = await fetch("/api/stripe/sync", { method: "POST" });
+    const j = await res.json();
+    setBusy(false);
+    if (!res.ok) {
+      setMsg({ ok: false, text: j.error ?? "Stripe sync failed" });
+      return;
+    }
+    const t = j.totals ?? { added: 0 };
+    setMsg({ ok: true, text: `Stripe synced: +${t.added} payments imported as income.` });
+    loadStripeItems();
+    router.refresh();
+  }
+
+  async function removeStripe(id: number) {
+    if (!confirm("Remove this Stripe account and delete its synced payments?")) return;
+    setBusy(true);
+    const res = await fetch(`/api/stripe/items?id=${id}`, { method: "DELETE" });
+    setBusy(false);
+    if (res.ok) {
+      setMsg({ ok: true, text: "Stripe account removed." });
+      loadStripeItems();
+      router.refresh();
+    } else {
+      setMsg({ ok: false, text: "Failed to remove" });
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between">
@@ -202,8 +264,46 @@ export default function AccountsPage() {
         ))}
       </ul>
 
+      <section className="pt-4 border-t border-black/10 dark:border-white/10">
+        <div className="flex items-end justify-between mt-4">
+          <div>
+            <h2 className="font-medium">Payment processors (Stripe)</h2>
+            <p className="text-sm opacity-60">Connect Stripe to import payments you receive as income.</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={stripeSyncNow} disabled={busy || stripeItems.length === 0} className="rounded-md bg-black/5 dark:bg-white/10 px-3 py-2 text-sm disabled:opacity-50">
+              Sync now
+            </button>
+            <button onClick={connectStripe} disabled={busy} className="rounded-md bg-indigo-500 text-white px-4 py-2 text-sm disabled:opacity-50">
+              {busy ? "Working…" : "Connect Stripe"}
+            </button>
+          </div>
+        </div>
+        <ul className="space-y-2 mt-3">
+          {stripeItems.length === 0 && (
+            <li className="text-sm opacity-60 rounded-xl border border-black/10 dark:border-white/10 p-5">
+              No Stripe accounts connected. Click <strong>Connect Stripe</strong>.
+            </li>
+          )}
+          {stripeItems.map((it) => (
+            <li key={it.id} className="rounded-lg border border-black/10 dark:border-white/10 p-4 flex items-center gap-3">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+              <div className="flex-1">
+                <div className="font-medium text-sm">{it.accountId}</div>
+                <div className="text-xs opacity-60">
+                  Last synced: {it.lastSyncedAt ? formatDate(it.lastSyncedAt) : "never"} · Added {formatDate(it.createdAt)}
+                </div>
+              </div>
+              <button onClick={() => removeStripe(it.id)} disabled={busy} className="text-xs opacity-50 hover:text-red-500 disabled:opacity-30">
+                remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <p className="text-xs opacity-50">
-        Requires PLAID_CLIENT_ID, PLAID_SECRET, and PLAID_ENV in .env. Sandbox keys are free at plaid.com.
+        Plaid: PLAID_CLIENT_ID, PLAID_SECRET, PLAID_ENV. Stripe: STRIPE_CONNECT_CLIENT_ID, STRIPE_SECRET_KEY (dashboard.stripe.com → Connect → OAuth).
       </p>
     </div>
   );
