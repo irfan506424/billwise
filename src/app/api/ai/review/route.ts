@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getUserId } from "@/lib/auth";
 import { reviewTransactions, aiAvailable, type AIInsight } from "@/lib/ai";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,17 @@ export async function POST() {
     return NextResponse.json({ error: "No transactions to review yet. Add some bills first." }, { status: 400 });
   }
   const summary = buildSummary(txs);
-  const insights = await reviewTransactions(summary);
+  let insights: AIInsight[];
+  try {
+    insights = await reviewTransactions(summary);
+  } catch (e) {
+    const msg = (e as Error).message;
+    logger.error({ event: "ai.review.error", message: msg });
+    return NextResponse.json(
+      { error: `AI review failed: ${msg}` },
+      { status: 502 },
+    );
+  }
 
   await prisma.recommendation.createMany({
     data: insights.map((i: AIInsight) => ({
