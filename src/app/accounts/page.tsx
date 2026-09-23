@@ -33,6 +33,7 @@ export default function AccountsPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [scriptReady, setScriptReady] = useState(false);
+  const [scriptBlocked, setScriptBlocked] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -40,15 +41,17 @@ export default function AccountsPage() {
       setScriptReady(true);
       return;
     }
-    const existing = document.querySelector(`script[src="${PLAID_SCRIPT}"]`);
+    const existing = document.querySelector(`script[src="${PLAID_SCRIPT}"]`) as HTMLScriptElement | null;
     if (existing) {
       existing.addEventListener("load", () => setScriptReady(true));
+      existing.addEventListener("error", () => setScriptBlocked(true));
       return;
     }
     const s = document.createElement("script");
     s.src = PLAID_SCRIPT;
     s.async = true;
     s.onload = () => setScriptReady(true);
+    s.onerror = () => setScriptBlocked(true);
     document.body.appendChild(s);
   }, []);
 
@@ -99,6 +102,21 @@ export default function AccountsPage() {
     handler.open();
   }
 
+  async function sandboxConnect() {
+    setBusy(true);
+    setMsg(null);
+    const res = await fetch("/api/plaid/sandbox-connect", { method: "POST" });
+    const j = await res.json();
+    setBusy(false);
+    if (!res.ok) {
+      setMsg({ ok: false, text: j.error ?? "Sandbox connect failed" });
+      return;
+    }
+    setMsg({ ok: true, text: `Sandbox bank connected. Synced +${j.added} new transactions.` });
+    loadItems();
+    router.refresh();
+  }
+
   async function syncNow() {
     setBusy(true);
     setMsg(null);
@@ -145,6 +163,16 @@ export default function AccountsPage() {
           </button>
         </div>
       </div>
+
+      {scriptBlocked && (
+        <div className="text-sm rounded-md px-3 py-2 bg-amber-500/10 text-amber-700 dark:text-amber-400">
+          The Plaid Link script couldn’t load (your network may be blocking cdn.plaid.com).
+          You can still connect a <strong>sandbox</strong> bank directly from the server:
+          <button onClick={sandboxConnect} disabled={busy} className="ml-2 rounded-md bg-amber-500 text-white px-3 py-1 text-xs disabled:opacity-50">
+            Connect sandbox bank
+          </button>
+        </div>
+      )}
 
       {msg && (
         <div className={`text-sm rounded-md px-3 py-2 ${msg.ok ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"}`}>
