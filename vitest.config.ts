@@ -11,5 +11,8 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"],
     setupFiles: ["tests/setup.ts"],
+    // Tests share a single SQLite file (tests/test.db) recreated per file in
+    // setup.ts, so files must run sequentially to avoid cross-file collisions.
+    fileParallelism: false,
   },
 });
