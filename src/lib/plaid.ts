@@ -190,3 +190,34 @@ export async function syncAllItems(userId: string): Promise<SyncResult[]> {
   }
   return results;
 }
+
+/** Webhook codes that mean "new transaction data is available — pull it." */
+const SYNC_WEBHOOK_CODES = new Set(["SYNC_UPDATES_AVAILABLE", "DEFAULT_UPDATE", "HISTORICAL_UPDATE"]);
+export function shouldSyncWebhook(code: string): boolean {
+  return SYNC_WEBHOOK_CODES.has(code);
+}
+
+/** Sync a single item looked up by Plaid item_id. Returns null if not found. */
+export async function syncByItemId(itemId: string): Promise<SyncResult | null> {
+  const item = await prisma.plaidItem.findUnique({ where: { itemId } });
+  if (!item) return null;
+  return syncItem(item);
+}
+
+/** Sync every linked item across all users (for the scheduled job). */
+export async function syncAllUsers(): Promise<{ users: number; results: SyncResult[] }> {
+  const items = await prisma.plaidItem.findMany();
+  const seen = new Set<string>();
+  const results: SyncResult[] = [];
+  for (const item of items) {
+    if (seen.has(item.userId)) continue;
+    seen.add(item.userId);
+    try {
+      const r = await syncAllItems(item.userId);
+      results.push(...r);
+    } catch (err) {
+      logger.error({ event: "plaid.cron.error", userId: item.userId, message: (err as Error).message });
+    }
+  }
+  return { users: seen.size, results };
+}
