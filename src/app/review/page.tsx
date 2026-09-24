@@ -18,6 +18,15 @@ type Rec = {
   potentialSavings: string | null;
   severity: string;
 };
+type Fee = {
+  id: number;
+  transactionId: number;
+  type: string;
+  merchant: string;
+  reason: string;
+  estimatedMonthly: string | null;
+  transaction: { merchant: string; amount: string; date: string };
+};
 
 const severityStyle: Record<string, string> = {
   info: "bg-sky-500/15 text-sky-600",
@@ -27,16 +36,22 @@ const severityStyle: Record<string, string> = {
 
 export default function ReviewPage() {
   const [recs, setRecs] = useState<Rec[]>([]);
+  const [fees, setFees] = useState<Fee[]>([]);
   const [insights, setInsights] = useState<Insight[] | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function loadRecs() {
     const r = await fetch("/api/recommendations");
     setRecs(await r.json());
   }
-  useEffect(() => { loadRecs(); }, []);
+  async function loadFees() {
+    const r = await fetch("/api/hidden-fees");
+    if (r.ok) setFees(await r.json());
+  }
+  useEffect(() => { loadRecs(); loadFees(); }, []);
 
   async function runReview() {
     setBusy(true);
@@ -53,6 +68,24 @@ export default function ReviewPage() {
     setInsights(j.insights);
     setSummary(j.summary);
     loadRecs();
+  }
+
+  async function scanHiddenFees() {
+    setScanning(true);
+    setError(null);
+    const res = await fetch("/api/hidden-fees/scan", { method: "POST" });
+    const j = await res.json();
+    setScanning(false);
+    if (!res.ok) {
+      setError(j.error ?? "Scan failed.");
+      return;
+    }
+    loadFees();
+  }
+
+  async function dismissFee(id: number) {
+    await fetch(`/api/hidden-fees/${id}`, { method: "PATCH" });
+    loadFees();
   }
 
   async function dismiss(id: number) {
@@ -106,6 +139,37 @@ export default function ReviewPage() {
           )}
         </section>
       )}
+
+      <section className="space-y-3">
+        <div className="flex items-end justify-between">
+          <h2 className="font-medium">Hidden / sneaky fees</h2>
+          <button onClick={scanHiddenFees} disabled={scanning} className="rounded-md bg-black/5 dark:bg-white/10 px-3 py-2 text-sm disabled:opacity-50">
+            {scanning ? "Scanning…" : "Scan for hidden fees"}
+          </button>
+        </div>
+        {fees.length === 0 ? (
+          <p className="text-sm opacity-60">No sneaky charges detected yet. Run a scan.</p>
+        ) : (
+          <ul className="space-y-2">
+            {fees.map((f) => (
+              <li key={f.id} className="rounded-lg border border-black/10 dark:border-white/10 p-3 flex gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/15 text-red-600">{f.type}</span>
+                    <span className="font-medium text-sm">{f.merchant}</span>
+                    {f.estimatedMonthly && Number(f.estimatedMonthly) > 0 && (
+                      <span className="text-xs ml-auto text-red-600">~{formatCurrency(Number(f.estimatedMonthly))}/mo</span>
+                    )}
+                  </div>
+                  <p className="text-sm opacity-80 mt-1">{f.reason}</p>
+                  <div className="text-xs opacity-50 mt-1">{f.transaction.merchant} · {formatCurrency(Number(f.transaction.amount))} · {new Date(f.transaction.date).toLocaleDateString()}</div>
+                </div>
+                <button onClick={() => dismissFee(f.id)} className="text-xs opacity-50 hover:opacity-100">dismiss</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="space-y-3">
         <h2 className="font-medium">Saved recommendations</h2>

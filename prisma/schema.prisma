@@ -35,6 +35,7 @@ model User {
   stripeAccounts  StripeAccount[]
   auditLogs       AuditLog[]
   payments        Payment[]
+  hiddenFees      HiddenFee[]
 
   @@map("users")
 }
@@ -93,6 +94,7 @@ model Transaction {
   category    Category? @relation(fields: [categoryId], references: [id])
   labels      Label[]
   flags       Flag[]
+  hiddenFees  HiddenFee[]
 
   @@unique([userId, externalSource, externalId])
   @@index([userId, date])
@@ -211,4 +213,22 @@ model Payment {
 
   @@index([userId, direction])
   @@map("payments")
+}
+
+model HiddenFee {
+  id              Int      @id @default(autoincrement())
+  userId           String
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactionId    Int
+  transaction      Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  type             String   // subscription_creep | maintenance_fee | interest | late_fee | foreign_fee | unknown_recurring
+  merchant         String
+  reason           String
+  estimatedMonthly  Decimal?
+  detectedAt       DateTime @default(now())
+  dismissed        Boolean  @default(false)
+
+  @@unique([userId, transactionId])
+  @@index([userId, dismissed])
+  @@map("hidden_fees")
 }

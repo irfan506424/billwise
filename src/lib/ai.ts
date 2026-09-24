@@ -56,7 +56,7 @@ export function aiAvailable(): boolean {
 
 type Message = { role: "user" | "assistant"; content: string | Anthropic.ContentBlockParam[] };
 
-async function callAI(config: AIConfig, messages: Message[], maxTokens: number): Promise<string> {
+export async function callAI(config: AIConfig, messages: Message[], maxTokens: number): Promise<string> {
   if (config.provider === "anthropic") return callAnthropic(config, messages, maxTokens);
   return callOpenAICompatible(config, messages, maxTokens);
 }
