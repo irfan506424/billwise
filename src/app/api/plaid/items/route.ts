@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserId } from "@/lib/auth";
+import { audit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -32,5 +33,6 @@ export async function DELETE(request: NextRequest) {
   // Remove this item's synced transactions, then the item record.
   await prisma.transaction.deleteMany({ where: { userId, externalSource: "plaid" } });
   await prisma.plaidItem.delete({ where: { id: Number(id) } });
+  await audit(userId, "plaid.disconnect", { targetType: "plaid_item", targetId: String(id) });
   return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserId } from "@/lib/auth";
+import { audit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -24,5 +25,6 @@ export async function DELETE(request: NextRequest) {
   if (!acct || acct.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
   await prisma.transaction.deleteMany({ where: { userId, externalSource: "stripe" } });
   await prisma.stripeAccount.delete({ where: { id: Number(id) } });
+  await audit(userId, "stripe.disconnect", { targetType: "stripe_account", targetId: String(id) });
   return NextResponse.json({ ok: true });
 }

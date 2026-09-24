@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserId } from "@/lib/auth";
 import { recomputeAllFlags } from "@/lib/rules";
 import { rulePatchSchema, parseBody } from "@/lib/validation";
+import { audit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -50,5 +51,6 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/rule
   if (!rule) return NextResponse.json({ error: "Not found" }, { status: 404 });
   await prisma.rule.delete({ where: { id: Number(id) } });
   await recomputeAllFlags(userId);
+  await audit(userId, "rule.delete", { targetType: "rule", targetId: String(id) });
   return NextResponse.json({ ok: true });
 }

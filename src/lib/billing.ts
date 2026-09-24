@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { prisma } from "./prisma";
 import { logger } from "./logger";
+import { audit } from "./audit";
 
 export type Plan = "free" | "pro" | "enterprise";
 
@@ -89,6 +90,7 @@ export async function handleBillingWebhook(rawBody: string, signature: string): 
         });
         void sub;
         logger.info({ event: "billing.subscribed", userId, plan });
+        await audit(userId, "billing.subscribed", { targetType: "user", meta: { plan } });
       }
       break;
     }
@@ -108,6 +110,8 @@ export async function handleBillingWebhook(rawBody: string, signature: string): 
         where: { stripeCustomerId: customerId },
         data: { plan: "free", subscriptionStatus: "canceled", subscriptionEndsAt: new Date() },
       });
+      const owner = await prisma.user.findFirst({ where: { stripeCustomerId: customerId } });
+      if (owner) await audit(owner.id, "billing.canceled", { targetType: "user" });
       break;
     }
     default:

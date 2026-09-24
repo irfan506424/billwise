@@ -40,7 +40,7 @@ export const authConfig: NextAuthConfig = {
 
         // Rate limit per-account to slow credential stuffing.
         // (Per-IP limiting belongs in the proxy / a Redis-backed limiter in production.)
-        if (!rateLimit(`login:${email}`, { windowMs: 60_000, max: 10 })) {
+        if (!(await rateLimit(`login:${email}`, { windowMs: 60_000, max: 10 }))) {
           logger.warn({ event: "login.rate_limited", email });
           return null;
         }

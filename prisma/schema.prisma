@@ -27,6 +27,7 @@ model User {
   recommendations Recommendation[]
   plaidItems      PlaidItem[]
   stripeAccounts  StripeAccount[]
+  auditLogs       AuditLog[]
 
   @@map("users")
 }
@@ -171,4 +172,18 @@ model StripeAccount {
 
   @@index([userId])
   @@map("stripe_accounts")
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String   // user.registered | user.login | plaid.connect | stripe.connect | transaction.delete | rule.delete | billing.subscribed | ...
+  targetType  String?  // transaction | category | rule | plaid_item | stripe_account | user
+  targetId    String?
+  meta        String?  // JSON string
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("audit_logs")
 }

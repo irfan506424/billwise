@@ -4,6 +4,7 @@ import { getUserId } from "@/lib/auth";
 import { applyRulesToTransaction } from "@/lib/rules";
 import { toDecimal } from "@/lib/format";
 import { transactionPatchSchema, parseBody } from "@/lib/validation";
+import { audit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -73,5 +74,6 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/tran
   if (!existing || existing.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await prisma.transaction.delete({ where: { id: Number(id) } });
+  await audit(userId, "transaction.delete", { targetType: "transaction", targetId: String(id) });
   return NextResponse.json({ ok: true });
 }

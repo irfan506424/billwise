@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth";
 import { exchangeAuthorizationCode, stripeConnectAvailable, syncStripeAccount } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
+import { audit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
     const { accountId } = await exchangeAuthorizationCode(userId, code);
     const account = await prisma.stripeAccount.findFirst({ where: { userId, accountId } });
     if (account) await syncStripeAccount(account);
+    await audit(userId, "stripe.connect", { targetType: "stripe_account", targetId: accountId });
   } catch (e) {
     return NextResponse.redirect(new URL(`/accounts?error=${encodeURIComponent((e as Error).message)}`, request.nextUrl));
   }

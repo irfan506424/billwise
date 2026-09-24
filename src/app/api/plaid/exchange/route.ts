@@ -4,6 +4,7 @@ import { getUserId } from "@/lib/auth";
 import { exchangePublicToken, plaidAvailable, syncItem } from "@/lib/plaid";
 import { prisma } from "@/lib/prisma";
 import { parseBody } from "@/lib/validation";
+import { audit } from "@/lib/audit";
 
 const exchangeSchema = z.object({
   public_token: z.string().min(1),
@@ -26,6 +27,7 @@ export async function POST(request: NextRequest) {
   const v = parsed.value;
 
   const result = await exchangePublicToken(userId, v.public_token, v.institution_name);
+  await audit(userId, "plaid.connect", { targetType: "plaid_item", targetId: result.itemId });
 
   // Pull initial transactions right away.
   const item = await prisma.plaidItem.findUnique({ where: { itemId: result.itemId } });
