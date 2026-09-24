@@ -15,6 +15,7 @@ const links = [
   { href: "/review", label: "AI review" },
   { href: "/pricing", label: "Pricing" },
   { href: "/settings/ai", label: "AI settings" },
+  { href: "/account", label: "Account" },
 ];
 
 export default function Nav() {

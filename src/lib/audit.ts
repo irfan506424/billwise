@@ -18,7 +18,9 @@ export type AuditAction =
   | "recommendation.dismissed"
   | "user.ai_settings_updated"
   | "payment.sent"
-  | "payment.received";
+  | "payment.received"
+  | "user.data_exported"
+  | "user.account_deleted";
 
 /**
  * Record a security-relevant event in the audit log.
