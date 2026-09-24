@@ -32,6 +32,12 @@ model User {
   subscriptionStatus     String?
   subscriptionEndsAt    DateTime?
 
+  // Bring-your-own-key AI (no provider cost to the app owner)
+  aiProvider   String?
+  aiApiKey     String?
+  aiBaseUrl    String?
+  aiModel      String?
+
   transactions    Transaction[]
   categories      Category[]
   labels          Label[]

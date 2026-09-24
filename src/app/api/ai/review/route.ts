@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getUserId } from "@/lib/auth";
-import { reviewTransactions, aiAvailable, type AIInsight } from "@/lib/ai";
+import { reviewTransactions, type AIInsight } from "@/lib/ai";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -42,12 +42,6 @@ export async function POST() {
   const userId = await getUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!aiAvailable()) {
-    return NextResponse.json(
-      { error: "Set ANTHROPIC_API_KEY in .env to enable AI review. The rules engine still works without it." },
-      { status: 400 },
-    );
-  }
   const txs = await prisma.transaction.findMany({
     where: { userId },
     include: { category: true, labels: true },
@@ -60,7 +54,7 @@ export async function POST() {
   const summary = buildSummary(txs);
   let insights: AIInsight[];
   try {
-    insights = await reviewTransactions(summary);
+    insights = await reviewTransactions(userId, summary);
   } catch (e) {
     const msg = (e as Error).message;
     logger.error({ event: "ai.review.error", message: msg });

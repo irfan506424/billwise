@@ -20,6 +20,12 @@ model User {
   subscriptionStatus     String?  // active | canceled | past_due | trialing
   subscriptionEndsAt    DateTime?
 
+  // Bring-your-own-key AI (no provider cost to the app owner)
+  aiProvider   String?  // anthropic | openai | openrouter | ollama
+  aiApiKey     String?  // AES-256-GCM encrypted at rest
+  aiBaseUrl    String?  // e.g. http://localhost:11434/v1 (ollama), https://api.openai.com/v1
+  aiModel      String?  // e.g. claude-sonnet-5, gpt-4o, llama3.3
+
   transactions    Transaction[]
   categories      Category[]
   labels          Label[]

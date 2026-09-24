@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractBillFromImage, extractBillFromText, aiAvailable } from "@/lib/ai";
+import { extractBillFromImage, extractBillFromText } from "@/lib/ai";
 import { toDecimal } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getUserId } from "@/lib/auth";
@@ -22,13 +22,6 @@ export async function POST(request: NextRequest) {
   const userId = await getUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!aiAvailable()) {
-    return NextResponse.json(
-      { error: "Set ANTHROPIC_API_KEY in .env to enable AI bill extraction. You can still add transactions manually." },
-      { status: 400 },
-    );
-  }
-
   const form = await request.formData();
   const file = form.get("file") as File | null;
   const text = form.get("text") as string | null;
@@ -40,19 +33,20 @@ export async function POST(request: NextRequest) {
       const bytes = new Uint8Array(await file.arrayBuffer());
       if (file.name.toLowerCase().endsWith(".txt") || (text && !file.size)) {
         const t = text ?? new TextDecoder().decode(bytes);
-        extracted = await extractBillFromText(t);
+        extracted = await extractBillFromText(userId, t);
       } else {
         const mediaType = detectMediaType(file.name, bytes);
         const base64 = Buffer.from(bytes).toString("base64");
-        extracted = await extractBillFromImage(base64, mediaType);
+        extracted = await extractBillFromImage(userId, base64, mediaType);
       }
     } else if (text) {
-      extracted = await extractBillFromText(text);
+      extracted = await extractBillFromText(userId, text);
     } else {
       return NextResponse.json({ error: "Provide a file or text." }, { status: 400 });
     }
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    // extract throws "AI not configured. …" when neither the user's BYOK key nor the server key is set
+    return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }
 
   if (!save) return NextResponse.json({ extracted });

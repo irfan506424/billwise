@@ -15,7 +15,8 @@ export type AuditAction =
   | "rule.delete"
   | "billing.subscribed"
   | "billing.canceled"
-  | "recommendation.dismissed";
+  | "recommendation.dismissed"
+  | "user.ai_settings_updated";
 
 /**
  * Record a security-relevant event in the audit log.
