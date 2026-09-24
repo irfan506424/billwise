@@ -3,6 +3,7 @@
   "buildCommand": "npm run build",
   "crons": [
     { "path": "/api/cron/plaid-sync", "schedule": "0 3 * * *" },
-    { "path": "/api/cron/hidden-fee-scan", "schedule": "30 3 * * *" }
+    { "path": "/api/cron/hidden-fee-scan", "schedule": "30 3 * * *" },
+    { "path": "/api/cron/monthly-report", "schedule": "0 4 1 * *" }
   ]
 }

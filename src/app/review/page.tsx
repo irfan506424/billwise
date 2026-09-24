@@ -27,6 +27,14 @@ type Fee = {
   estimatedMonthly: string | null;
   transaction: { merchant: string; amount: string; date: string };
 };
+type Report = {
+  id: number;
+  month: string;
+  headline: string;
+  risks: string;
+  recommendations: string;
+  createdAt: string;
+};
 
 const severityStyle: Record<string, string> = {
   info: "bg-sky-500/15 text-sky-600",
@@ -37,10 +45,12 @@ const severityStyle: Record<string, string> = {
 export default function ReviewPage() {
   const [recs, setRecs] = useState<Rec[]>([]);
   const [fees, setFees] = useState<Fee[]>([]);
+  const [report, setReport] = useState<Report | null>(null);
   const [insights, setInsights] = useState<Insight[] | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function loadRecs() {
@@ -51,7 +61,11 @@ export default function ReviewPage() {
     const r = await fetch("/api/hidden-fees");
     if (r.ok) setFees(await r.json());
   }
-  useEffect(() => { loadRecs(); loadFees(); }, []);
+  async function loadReport() {
+    const r = await fetch("/api/monthly-report");
+    if (r.ok) setReport(await r.json());
+  }
+  useEffect(() => { loadRecs(); loadFees(); loadReport(); }, []);
 
   async function runReview() {
     setBusy(true);
@@ -81,6 +95,19 @@ export default function ReviewPage() {
       return;
     }
     loadFees();
+  }
+
+  async function generateReport() {
+    setGenerating(true);
+    setError(null);
+    const res = await fetch("/api/cron/monthly-report", { method: "POST" });
+    const j = await res.json();
+    setGenerating(false);
+    if (!res.ok) {
+      setError(j.error ?? "Report failed.");
+      return;
+    }
+    loadReport();
   }
 
   async function dismissFee(id: number) {
@@ -168,6 +195,39 @@ export default function ReviewPage() {
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-end justify-between">
+          <h2 className="font-medium">Monthly financial-safety report</h2>
+          <button onClick={generateReport} disabled={generating} className="rounded-md bg-black/5 dark:bg-white/10 px-3 py-2 text-sm disabled:opacity-50">
+            {generating ? "Generating…" : "Generate this month"}
+          </button>
+        </div>
+        {report ? (
+          <div className="rounded-lg border border-black/10 dark:border-white/10 p-4 space-y-2">
+            <div className="font-medium text-sm">{report.headline}</div>
+            {report.risks && JSON.parse(report.risks).length > 0 && (
+              <div>
+                <div className="text-xs opacity-60 mb-1">Risks:</div>
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  {JSON.parse(report.risks).map((r: string, i: number) => <li key={i}>{r}</li>)}
+                </ul>
+              </div>
+            )}
+            {report.recommendations && JSON.parse(report.recommendations).length > 0 && (
+              <div className="mt-2">
+                <div className="text-xs opacity-60 mb-1">Recommendations:</div>
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  {JSON.parse(report.recommendations).map((r: string, i: number) => <li key={i}>{r}</li>)}
+                </ul>
+              </div>
+            )}
+            <div className="text-xs opacity-50 mt-2">{report.month} · generated {new Date(report.createdAt).toLocaleString()}</div>
+          </div>
+        ) : (
+          <p className="text-sm opacity-60">No report yet. Click <strong>Generate this month</strong>.</p>
         )}
       </section>
 
