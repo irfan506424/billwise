@@ -35,6 +35,14 @@ type Report = {
   recommendations: string;
   createdAt: string;
 };
+type Savings = {
+  platformId: number;
+  name: string;
+  category: string;
+  url: string;
+  description: string;
+  reason: string;
+};
 
 const severityStyle: Record<string, string> = {
   info: "bg-sky-500/15 text-sky-600",
@@ -46,6 +54,7 @@ export default function ReviewPage() {
   const [recs, setRecs] = useState<Rec[]>([]);
   const [fees, setFees] = useState<Fee[]>([]);
   const [report, setReport] = useState<Report | null>(null);
+  const [savings, setSavings] = useState<Savings[]>([]);
   const [insights, setInsights] = useState<Insight[] | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,7 +74,11 @@ export default function ReviewPage() {
     const r = await fetch("/api/monthly-report");
     if (r.ok) setReport(await r.json());
   }
-  useEffect(() => { loadRecs(); loadFees(); loadReport(); }, []);
+  async function loadSavings() {
+    const r = await fetch("/api/savings/recommendations");
+    if (r.ok) setSavings(await r.json());
+  }
+  useEffect(() => { loadRecs(); loadFees(); loadReport(); loadSavings(); }, []);
 
   async function runReview() {
     setBusy(true);
@@ -228,6 +241,26 @@ export default function ReviewPage() {
           </div>
         ) : (
           <p className="text-sm opacity-60">No report yet. Click <strong>Generate this month</strong>.</p>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-medium">Save money — platforms matched to your spending</h2>
+        {savings.length === 0 ? (
+          <p className="text-sm opacity-60">No matches yet. Add categories to your transactions and recommendations will appear.</p>
+        ) : (
+          <ul className="space-y-2">
+            {savings.map((s) => (
+              <li key={s.platformId} className="rounded-lg border border-black/10 dark:border-white/10 p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600">{s.category}</span>
+                  <a href={s.url} target="_blank" rel="noopener noreferrer" className="font-medium text-sm text-indigo-500 hover:underline">{s.name}</a>
+                </div>
+                <p className="text-sm opacity-80 mt-1">{s.description}</p>
+                <p className="text-xs opacity-60 mt-1">{s.reason}</p>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 
