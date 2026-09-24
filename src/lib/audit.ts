@@ -16,7 +16,9 @@ export type AuditAction =
   | "billing.subscribed"
   | "billing.canceled"
   | "recommendation.dismissed"
-  | "user.ai_settings_updated";
+  | "user.ai_settings_updated"
+  | "payment.sent"
+  | "payment.received";
 
 /**
  * Record a security-relevant event in the audit log.

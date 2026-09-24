@@ -34,6 +34,7 @@ model User {
   plaidItems      PlaidItem[]
   stripeAccounts  StripeAccount[]
   auditLogs       AuditLog[]
+  payments        Payment[]
 
   @@map("users")
 }
@@ -192,4 +193,22 @@ model AuditLog {
 
   @@index([userId, createdAt])
   @@map("audit_logs")
+}
+
+model Payment {
+  id                 Int      @id @default(autoincrement())
+  userId              String   // sender (direction = sent) or recipient (direction = received)
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  direction           String   // sent | received
+  counterpartyUserId   String?  // the other party's user id
+  amount              Decimal
+  currency            String   @default("USD")
+  stripeChargeId        String?
+  stripeTransferId       String?
+  note                String?
+  status              String   @default("pending") // pending | succeeded | failed
+  createdAt            DateTime @default(now())
+
+  @@index([userId, direction])
+  @@map("payments")
 }
