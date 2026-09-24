@@ -7,7 +7,8 @@ type Category = { id: number; name: string; color: string };
 
 export default function IngestPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<"manual" | "ocr" | "csv">("manual");
+  const [tab, setTab] = useState<"manual" | "ocr" | "csv" | "email">("manual");
+  const [inboundEmail, setInboundEmail] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -16,6 +17,10 @@ export default function IngestPage() {
     fetch("/api/categories")
       .then((r) => r.json())
       .then(setCategories)
+      .catch(() => {});
+    fetch("/api/inbound-address")
+      .then((r) => r.json())
+      .then((d) => setInboundEmail(d.inboundEmail))
       .catch(() => {});
   }, []);
 
@@ -122,7 +127,7 @@ export default function IngestPage() {
       </div>
 
       <div className="flex gap-1 border-b border-black/10 dark:border-white/10">
-        {(["manual", "ocr", "csv"] as const).map((t) => (
+        {(["manual", "ocr", "csv", "email"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -130,7 +135,7 @@ export default function IngestPage() {
               tab === t ? "border-indigo-500 font-medium" : "border-transparent opacity-60 hover:opacity-100"
             }`}
           >
-            {t === "ocr" ? "Scan receipt / PDF" : t === "csv" ? "Import CSV" : "Manual entry"}
+            {t === "ocr" ? "Scan receipt / PDF" : t === "csv" ? "Import CSV" : t === "email" ? "Email" : "Manual entry"}
           </button>
         ))}
       </div>
@@ -236,6 +241,28 @@ export default function IngestPage() {
           )}
           <p className="text-xs opacity-50">
             Columns auto-detected: merchant/description/name/payee, amount/value/debit/credit, date, category.
+          </p>
+        </div>
+      )}
+
+      {tab === "email" && (
+        <div className="space-y-4 max-w-2xl">
+          <div className="rounded-md border border-black/10 dark:border-white/10 p-4 text-sm space-y-2">
+            <div className="font-medium">Forward receipts to your personal Billwise address:</div>
+            {inboundEmail ? (
+              <code className="block text-indigo-600 break-all">{inboundEmail}</code>
+            ) : (
+              <span className="opacity-60">Loading your address…</span>
+            )}
+            <p className="text-xs opacity-70">
+              Any bill, invoice, or receipt sent to that address is auto-extracted with AI and added to your transactions — no photo, no CSV. Works with merchant receipts, utility ebills, subscription renewals, and warranty confirmations.
+            </p>
+            <p className="text-xs opacity-70">
+              In your email app, set up <strong>auto-forwarding</strong> of receipts to this address (most email apps support rules/filters). Then every bill lands in Billwise on its own.
+            </p>
+          </div>
+          <p className="text-xs opacity-50">
+            Requires an inbound email service (Resend/Postmark Inbound) pointing its webhook at <code>/api/email/inbound</code> with <code>EMAIL_INBOUND_SECRET</code>. Without it, use manual entry, scan, or CSV.
           </p>
         </div>
       )}

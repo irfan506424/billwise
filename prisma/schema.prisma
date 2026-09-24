@@ -26,6 +26,9 @@ model User {
   aiBaseUrl    String?  // e.g. http://localhost:11434/v1 (ollama), https://api.openai.com/v1
   aiModel      String?  // e.g. claude-sonnet-5, gpt-4o, llama3.3
 
+  // Per-user inbound email address for automated bill/invoice ingestion
+  inboundEmail  String?  @unique  // e.g. irfan506424@inbound.billwise.app
+
   transactions    Transaction[]
   categories      Category[]
   labels          Label[]
@@ -36,6 +39,7 @@ model User {
   auditLogs       AuditLog[]
   payments        Payment[]
   hiddenFees      HiddenFee[]
+  monthlyReports  MonthlyReport[]
 
   @@map("users")
 }
@@ -231,4 +235,31 @@ model HiddenFee {
   @@unique([userId, transactionId])
   @@index([userId, dismissed])
   @@map("hidden_fees")
+}
+
+model MonthlyReport {
+  id              Int      @id @default(autoincrement())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month            String   // YYYY-MM
+  headline         String
+  risks            String
+  recommendations String
+  createdAt         DateTime @default(now())
+
+  @@unique([userId, month])
+  @@index([userId])
+  @@map("monthly_reports")
+}
+
+model SavingsPlatform {
+  id          Int      @id @default(autoincrement())
+  name         String   @unique
+  category     String   // cashback | subscription_negotiator | coupon | budgeting | bill_negotiator
+  url          String
+  description  String
+  matchTags   String   // comma-separated categories this platform helps with (e.g. "Dining,Subscriptions,Shopping")
+  createdAt    DateTime @default(now())
+
+  @@map("savings_platforms")
 }

@@ -38,6 +38,9 @@ model User {
   aiBaseUrl    String?
   aiModel      String?
 
+  // Per-user inbound email address for automated bill/invoice ingestion
+  inboundEmail  String?  @unique
+
   transactions    Transaction[]
   categories      Category[]
   labels          Label[]
@@ -48,6 +51,7 @@ model User {
   auditLogs       AuditLog[]
   payments        Payment[]
   hiddenFees      HiddenFee[]
+  monthlyReports  MonthlyReport[]
 
   @@map("users")
 }
@@ -243,4 +247,31 @@ model HiddenFee {
   @@unique([userId, transactionId])
   @@index([userId, dismissed])
   @@map("hidden_fees")
+}
+
+model MonthlyReport {
+  id              Int      @id @default(autoincrement())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month            String
+  headline         String
+  risks            String
+  recommendations String
+  createdAt         DateTime @default(now())
+
+  @@unique([userId, month])
+  @@index([userId])
+  @@map("monthly_reports")
+}
+
+model SavingsPlatform {
+  id          Int      @id @default(autoincrement())
+  name         String   @unique
+  category     String
+  url          String
+  description  String
+  matchTags   String
+  createdAt    DateTime @default(now())
+
+  @@map("savings_platforms")
 }
