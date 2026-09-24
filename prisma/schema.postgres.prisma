@@ -26,6 +26,12 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
 
+  // SaaS billing
+  stripeCustomerId      String?
+  plan                  String   @default("free")
+  subscriptionStatus     String?
+  subscriptionEndsAt    DateTime?
+
   transactions    Transaction[]
   categories      Category[]
   labels          Label[]

@@ -13,6 +13,7 @@ const links = [
   { href: "/categories", label: "Categories" },
   { href: "/rules", label: "Rules" },
   { href: "/review", label: "AI review" },
+  { href: "/pricing", label: "Pricing" },
 ];
 
 export default function Nav() {
