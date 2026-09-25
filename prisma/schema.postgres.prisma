@@ -52,6 +52,7 @@ model User {
   payments        Payment[]
   hiddenFees      HiddenFee[]
   monthlyReports  MonthlyReport[]
+  cancellations   Cancellation[]
 
   @@map("users")
 }
@@ -243,6 +244,7 @@ model HiddenFee {
   estimatedMonthly  Decimal?  @db.Decimal(12, 2)
   detectedAt       DateTime @default(now())
   dismissed        Boolean  @default(false)
+  cancellations     Cancellation[]
 
   @@unique([userId, transactionId])
   @@index([userId, dismissed])
@@ -262,6 +264,23 @@ model MonthlyReport {
   @@unique([userId, month])
   @@index([userId])
   @@map("monthly_reports")
+}
+
+model Cancellation {
+  id           Int      @id @default(autoincrement())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hiddenFeeId   Int?
+  hiddenFee     HiddenFee? @relation(fields: [hiddenFeeId], references: [id], onDelete: SetNull)
+  merchant      String
+  status        String   @default("pending")
+  method        String   @default("email")
+  sentAt        DateTime?
+  confirmedAt   DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, status])
+  @@map("cancellations")
 }
 
 model SavingsPlatform {

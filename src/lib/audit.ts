@@ -20,7 +20,11 @@ export type AuditAction =
   | "payment.sent"
   | "payment.received"
   | "user.data_exported"
-  | "user.account_deleted";
+  | "user.account_deleted"
+  | "cancellation.requested"
+  | "cancellation.sent"
+  | "cancellation.confirmed"
+  | "cancellation.failed";
 
 /**
  * Record a security-relevant event in the audit log.

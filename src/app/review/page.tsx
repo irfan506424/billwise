@@ -60,6 +60,8 @@ export default function ReviewPage() {
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [cancelling, setCancelling] = useState<number | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function loadRecs() {
@@ -126,6 +128,33 @@ export default function ReviewPage() {
   async function dismissFee(id: number) {
     await fetch(`/api/hidden-fees/${id}`, { method: "PATCH" });
     loadFees();
+  }
+
+  async function cancelFee(f: { id: number; merchant: string; estimatedMonthly: string | null }) {
+    setCancelling(f.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/cancellations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hiddenFeeId: f.id }),
+      });
+      const j = await res.json();
+      setCancelling(null);
+      if (!res.ok) {
+        setError(j.error ?? "Cancel failed.");
+        return;
+      }
+      if (j.mailto) {
+        // We couldn't send on the user's behalf — open their email client with the draft.
+        window.location.href = j.mailto;
+      } else {
+        setMsg({ ok: true, text: `Cancellation requested for ${f.merchant}. We'll follow up.` });
+      }
+    } catch (e) {
+      setCancelling(null);
+      setError((e as Error).message);
+    }
   }
 
   async function dismiss(id: number) {
@@ -204,7 +233,12 @@ export default function ReviewPage() {
                   <p className="text-sm opacity-80 mt-1">{f.reason}</p>
                   <div className="text-xs opacity-50 mt-1">{f.transaction.merchant} · {formatCurrency(Number(f.transaction.amount))} · {new Date(f.transaction.date).toLocaleDateString()}</div>
                 </div>
-                <button onClick={() => dismissFee(f.id)} className="text-xs opacity-50 hover:opacity-100">dismiss</button>
+                <div className="flex flex-col gap-1">
+                  <button onClick={() => cancelFee(f)} disabled={cancelling === f.id} className="text-xs bg-red-500 text-white rounded px-2 py-1 disabled:opacity-50">
+                    {cancelling === f.id ? "Cancelling…" : "Cancel"}
+                  </button>
+                  <button onClick={() => dismissFee(f.id)} className="text-xs opacity-50 hover:opacity-100">dismiss</button>
+                </div>
               </li>
             ))}
           </ul>
